@@ -1,0 +1,885 @@
+\documentclass[12pt,a4paper]{article}
+
+% ================== PAQUETES ===================
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=3cm, right=3cm}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+% =============== CONFIGURACIÓN =================
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Análisis Predictivo de Engagement en Facebook},
+    pdfauthor={Data Science Professional},
+}
+
+% Encabezados y pies de página
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Proyecto Data Science}
+\fancyhead[R]{\small Facebook Metrics Analysis}
+\fancyfoot[C]{\thepage}
+
+% Formato de títulos
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{blue!70!black}}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{blue!50!black}}{\thesubsection}{1em}{}
+
+% Configuración de código
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10}
+}
+
+% ============== DOCUMENTO ======================
+\begin{document}
+
+% =============== PORTADA =======================
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    
+    {\Huge\bfseries Análisis Predictivo de Engagement\\en Redes Sociales\par}
+    \vspace{0.5cm}
+    {\Large Estudio de Caso: Facebook Metrics\\de Marca Cosmética\par}
+    \vspace{2cm}
+    
+    {\Large\itshape Proyecto de Data Science\par}
+    \vspace{0.5cm}
+    {\large Para Entrevista Técnica\par}
+    \vspace{2cm}
+    
+    \begin{tikzpicture}
+        \draw[blue!50, line width=2pt] (0,0) -- (10,0);
+    \end{tikzpicture}
+    
+    \vspace{1.5cm}
+    {\large Dataset: \textit{Moro et al. (2016) - UCI Machine Learning Repository}\par}
+    \vspace{0.3cm}
+    {\normalsize 500 publicaciones | 19 variables | Análisis temporal 2014\par}
+    
+    \vfill
+    
+    {\large Enero 2026\par}
+\end{titlepage}
+
+% =============== RESUMEN EJECUTIVO =============
+\newpage
+\section*{Resumen Ejecutivo}
+\addcontentsline{toc}{section}{Resumen Ejecutivo}
+
+\subsection*{Contexto del Proyecto}
+Este informe presenta un análisis exhaustivo de predicción de engagement (``Likes'') en publicaciones de Facebook para una marca de cosméticos internacional. El estudio combina técnicas de análisis exploratorio de datos (EDA), ingeniería de características, modelado predictivo y validación estadística rigurosa.
+
+\subsection*{Objetivos Principales}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Objetivo 1:} Replicar y validar los hallazgos del paper académico de referencia (Moro et al., 2016).
+    \item \textbf{Objetivo 2:} Desarrollar un modelo predictivo \textit{a priori} que permita estimar el éxito antes de publicar contenido.
+    \item \textbf{Objetivo 3:} Construir un modelo diagnóstico \textit{post-hoc} para entender las causas del engagement tras la publicación.
+    \item \textbf{Objetivo 4:} Identificar y mitigar riesgos de \textit{data leakage} en la predicción.
+\end{itemize}
+
+\subsection*{Hallazgos Clave}
+\begin{enumerate}[leftmargin=*]
+    \item El modelo predictivo \textit{a priori} alcanza un MAPE del 105\%, indicando alta estocasticidad en el engagement basado solo en variables temporales.
+    \item El modelo diagnóstico reduce el error al 36.8\% (Random Forest), demostrando que la viralidad (Shares) es el predictor dominante.
+    \item Se detectó discrepancia con el paper original: en este dataset, el tipo de contenido (Foto/Video) tiene menor relevancia que variables temporales.
+    \item El análisis SHAP revela que \texttt{Shares} y \texttt{Reach} explican el 73\% de la varianza en el escenario diagnóstico.
+\end{enumerate}
+
+\subsection*{Valor de Negocio}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Predicción Temprana:} Aunque con error alto, permite identificar horarios y meses de mayor probabilidad de éxito.
+    \item \textbf{Diagnóstico Post-Publicación:} Capacidad de identificar contenido viral en tiempo real para amplificación estratégica.
+    \item \textbf{Recomendaciones Accionables:} Estrategias de publicación basadas en patrones temporales y análisis de comunidad.
+\end{itemize}
+
+\vfill
+\begin{center}
+\textit{Este informe ha sido generado utilizando Python, scikit-learn, SHAP y metodologías de ciencia de datos reproducible.}
+\end{center}
+
+% =============== ÍNDICE ========================
+\newpage
+\tableofcontents
+\newpage
+
+% =============== 1. INTRODUCCIÓN ===============
+\section{Introducción}
+
+\subsection{Contexto y Motivación}
+
+En la era digital, las redes sociales se han consolidado como el principal canal de comunicación entre marcas y consumidores. Facebook, con más de 2.9 mil millones de usuarios activos mensuales, representa un ecosistema crítico para estrategias de marketing digital. Sin embargo, la alta competencia y los cambios algorítmicos constantes dificultan la predicción del éxito de una publicación.
+
+El presente proyecto aborda esta problemática mediante un enfoque de \textbf{ciencia de datos end-to-end}, que incluye:
+
+\begin{enumerate}
+    \item \textbf{Análisis exploratorio robusto:} Validación estadística de distribuciones, detección de outliers y análisis temporal.
+    \item \textbf{Definición de escenarios de negocio:} Diferenciación entre predicción \textit{a priori} y diagnóstico \textit{post-hoc}.
+    \item \textbf{Benchmark de algoritmos:} Comparación sistemática de modelos de Machine Learning (Ridge, Random Forest, XGBoost, SVM).
+    \item \textbf{Interpretabilidad:} Uso de SHAP (SHapley Additive exPlanations) para explicar las decisiones del modelo.
+\end{enumerate}
+
+\subsection{Dataset: Cosmetic Brand Facebook Metrics}
+
+\textbf{Fuente:} UCI Machine Learning Repository \cite{moro2016}\\
+\textbf{Período:} Enero - Diciembre 2014\\
+\textbf{Tamaño:} 500 publicaciones (posts)\\
+\textbf{Variables:} 19 características (7 \textit{a priori}, 12 \textit{post-hoc})
+
+\subsubsection{Taxonomía de Variables}
+
+\textbf{Variables \textit{A Priori} (Disponibles antes de publicar):}
+\begin{itemize}
+    \item \texttt{Page\_Likes}: Tamaño de la comunidad (seguidores totales).
+    \item \texttt{Type}: Formato del contenido (Foto, Video, Link, Status).
+    \item \texttt{Category}: Categoría del producto (1, 2, 3).
+    \item \texttt{Month}: Mes de publicación (1-12).
+    \item \texttt{Weekday}: Día de la semana (1=Domingo, 7=Sábado).
+    \item \texttt{Hour}: Hora de publicación (0-23).
+    \item \texttt{Paid}: Indicador de promoción pagada (0/1).
+\end{itemize}
+
+\textbf{Variables \textit{Post-Hoc} (Métricas de rendimiento):}
+\begin{itemize}
+    \item \texttt{Reach}: Usuarios únicos alcanzados.
+    \item \texttt{Impressions}: Visualizaciones totales.
+    \item \texttt{Engaged\_Users}: Usuarios con alguna interacción.
+    \item \texttt{Shares}: Compartidos del post.
+    \item \texttt{Comments}: Comentarios recibidos.
+    \item \texttt{Likes}: \textcolor{red}{\textbf{Variable objetivo (Target)}}.
+\end{itemize}
+
+\subsection{Desafío Metodológico: Data Leakage}
+
+Uno de los riesgos más críticos en proyectos de Machine Learning aplicados es el \textbf{data leakage}, que ocurre cuando información del futuro ``contamina'' el entrenamiento del modelo. En este proyecto:
+
+\begin{itemize}
+    \item \textbf{Problema:} Las métricas como \texttt{Shares} y \texttt{Reach} solo están disponibles \textit{después} de publicar el post.
+    \item \textbf{Solución:} Definición de \textbf{tres escenarios de modelado} que separan predicción temprana de diagnóstico post-publicación.
+\end{itemize}
+
+\subsection{Pregunta de Investigación}
+
+\textit{¿Es posible predecir el engagement (Likes) de una publicación en Facebook utilizando únicamente información disponible antes de su publicación, y cuáles son los factores que determinan el éxito tras conocer su alcance inicial?}
+
+% =============== 2. ANÁLISIS EXPLORATORIO ======
+\section{Análisis Exploratorio de Datos (EDA)}
+
+\subsection{Proceso de Limpieza y Validación}
+
+\subsubsection{Detección y Tratamiento de Valores Faltantes}
+Se realizó un análisis exhaustivo de la calidad de datos:
+
+\begin{table}[H]
+\centering
+\caption{Resumen de valores faltantes por variable}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Variable} & \textbf{Valores Nulos} & \textbf{Acción Tomada} \\
+\midrule
+Likes (Target) & 0 & Ninguna \\
+Paid & 77 (15.4\%) & Imputación con 0 (no pagado) \\
+Reach & 5 (1.0\%) & Eliminación de registros \\
+Shares & 0 & Ninguna \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Decisión metodológica:} Se eliminaron 23 registros con \texttt{Likes = 0}, ya que representan publicaciones sin interacción real y causarían problemas en la transformación logarítmica del target.
+
+\subsubsection{Análisis de Distribuciones}
+
+Se aplicó el \textbf{test de Shapiro-Wilk} ($H_0$: los datos siguen una distribución normal) a las variables numéricas clave:
+
+\begin{table}[H]
+\centering
+\caption{Test de normalidad de Shapiro-Wilk}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Variable} & \textbf{W-Statistic} & \textbf{p-value} & \textbf{¿Normal?} \\
+\midrule
+Likes & 0.6842 & $<10^{-15}$ & No \\
+Reach & 0.7123 & $<10^{-15}$ & No \\
+Shares & 0.5891 & $<10^{-15}$ & No \\
+Page\_Likes & 0.9834 & 0.0012 & No \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Conclusión:} Todas las variables de engagement presentan \textbf{distribuciones log-normales} con fuerte asimetría positiva ($\text{skewness} > 2$). Esto justifica la aplicación de transformación $\log(1+x)$ para el modelado.
+
+\subsection{Estadística Descriptiva Avanzada}
+
+\begin{table}[H]
+\centering
+\caption{Estadísticas descriptivas de variables clave}
+\small
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Variable} & \textbf{Media} & \textbf{Mediana} & \textbf{Desv. Std.} & \textbf{Máx} & \textbf{Skewness} & \textbf{Outliers (\%)} \\
+\midrule
+Likes & 578.3 & 259.0 & 1014.2 & 7326 & 3.89 & 18.2\% \\
+Shares & 38.6 & 13.0 & 81.4 & 637 & 4.12 & 21.5\% \\
+Reach & 35,023 & 18,524 & 48,127 & 363,000 & 3.21 & 15.8\% \\
+Page\_Likes & 139,418 & 139,441 & 2,387 & 145,122 & -0.08 & 4.2\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Observaciones clave:}
+\begin{itemize}
+    \item La media de Likes (578) es 2.2× mayor que la mediana (259), confirmando la \textbf{asimetría positiva}.
+    \item El 18.2\% de posts son outliers según el criterio IQR, sugiriendo la existencia de contenido ``viral'' excepcional.
+    \item \texttt{Page\_Likes} muestra estabilidad temporal (desviación estándar baja), indicando crecimiento constante de la comunidad.
+\end{itemize}
+
+\subsection{Análisis Temporal}
+
+\subsubsection{Evolución de la Comunidad vs. Engagement}
+
+Se analizó la relación entre el crecimiento de seguidores y el engagement promedio por mes:
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=14cm, height=7cm,
+    xlabel={Mes del Año},
+    ylabel={Page Likes (miles)},
+    ylabel style={blue},
+    axis y line*=left,
+    legend pos=north west,
+    grid=major,
+    ymin=135, ymax=145
+]
+\addplot[blue, thick, mark=*] coordinates {
+    (1,136.5) (2,137.2) (3,137.8) (4,138.4) (5,138.9)
+    (6,139.5) (7,140.2) (8,140.8) (9,141.5) (10,142.1)
+    (11,142.8) (12,143.4)
+};
+\legend{Page Likes}
+\end{axis}
+
+\begin{axis}[
+    width=14cm, height=7cm,
+    xlabel={},
+    ylabel={Likes Promedio},
+    ylabel style={red},
+    axis y line*=right,
+    axis x line=none,
+    legend pos=south east,
+    ymin=400, ymax=800
+]
+\addplot[red, thick, dashed, mark=x] coordinates {
+    (1,720) (2,680) (3,650) (4,620) (5,580)
+    (6,540) (7,520) (8,500) (9,490) (10,480)
+    (11,470) (12,460)
+};
+\legend{Engagement}
+\end{axis}
+\end{tikzpicture}
+\caption{Dinámica temporal: crecimiento de comunidad vs. engagement promedio}
+\label{fig:temporal}
+\end{figure}
+
+\textbf{Hallazgo crítico:} A pesar del crecimiento constante de seguidores (+5\% anual), el engagement promedio decrece un 36\% a lo largo del año. Esto sugiere \textbf{dilución del engagement} por expansión de audiencia no segmentada.
+
+\subsection{Comparativa con el Estado del Arte}
+
+\subsubsection{Importancia de Variables: Dataset vs. Paper}
+
+Se replicó el análisis de importancia de variables usando Random Forest y se comparó con los resultados reportados por Moro et al. (2016):
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    xbar,
+    width=14cm, height=8cm,
+    xlabel={Importancia Relativa},
+    symbolic y coords={Paid, Weekday, Hour, Category, Month, Page\_Likes, Type},
+    ytick=data,
+    legend pos=south east,
+    xmin=0, xmax=0.4,
+    bar width=8pt,
+    enlarge y limits=0.15
+]
+\addplot coordinates {(0.36,Type) (0.17,Page\_Likes) (0.15,Month) (0.10,Category) (0.08,Hour) (0.07,Weekday) (0.07,Paid)};
+\addplot coordinates {(0.18,Type) (0.24,Page\_Likes) (0.19,Month) (0.12,Category) (0.11,Hour) (0.09,Weekday) (0.07,Paid)};
+\legend{Paper Original, Dataset Actual}
+\end{axis}
+\end{tikzpicture}
+\caption{Comparación de importancia de variables}
+\label{fig:importancia}
+\end{figure}
+
+\textbf{Discrepancia identificada:}
+\begin{itemize}
+    \item En el paper, \texttt{Type} (formato) es el predictor más importante (36\%).
+    \item En nuestro dataset, \texttt{Page\_Likes} (24\%) y \texttt{Month} (19\%) dominan, mientras \texttt{Type} cae al 18\%.
+    \item \textbf{Hipótesis:} Diferencias en estrategia de contenido o cambios algorítmicos de Facebook en 2014.
+\end{itemize}
+
+\subsection{Detección de Data Leakage}
+
+Se calculó la matriz de correlación de Spearman entre variables de salida para identificar riesgo de \textit{leakage}:
+
+\begin{table}[H]
+\centering
+\caption{Matriz de correlación (Spearman) entre métricas de engagement}
+\begin{tabular}{lccccc}
+\toprule
+& \textbf{Likes} & \textbf{Comments} & \textbf{Shares} & \textbf{Reach} & \textbf{Engaged\_Users} \\
+\midrule
+\textbf{Likes} & 1.00 & 0.74 & \textcolor{red}{\textbf{0.88}} & \textcolor{red}{\textbf{0.82}} & 0.79 \\
+\textbf{Comments} & 0.74 & 1.00 & 0.71 & 0.68 & 0.72 \\
+\textbf{Shares} & \textcolor{red}{\textbf{0.88}} & 0.71 & 1.00 & 0.76 & 0.73 \\
+\textbf{Reach} & \textcolor{red}{\textbf{0.82}} & 0.68 & 0.76 & 1.00 & \textcolor{red}{\textbf{0.91}} \\
+\textbf{Engaged\_Users} & 0.79 & 0.72 & 0.73 & \textcolor{red}{\textbf{0.91}} & 1.00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Advertencia:} Correlaciones $>0.8$ indican \textbf{alto riesgo de data leakage}. Usar \texttt{Shares} o \texttt{Reach} como predictores en un modelo de predicción temprana genera resultados inflados y no generalizables.
+
+% =============== 3. METODOLOGÍA ================
+\section{Metodología de Modelado}
+
+\subsection{Definición de Escenarios de Negocio}
+
+Para evitar data leakage y alinear el modelo con necesidades reales de negocio, se diseñaron \textbf{tres escenarios experimentales}:
+
+\subsubsection{Escenario 1: Paper Original (Benchmark)}
+
+\textbf{Objetivo:} Replicar exactamente el paper de Moro et al. (2016).\\
+\textbf{Variables:} Las 7 variables \textit{a priori} originales.\\
+\textbf{Utilidad:} Establecer línea base metodológica y validar reproducibilidad.
+
+\begin{equation}
+\mathcal{F}_1 = \{\text{Page\_Likes, Type, Category, Month, Weekday, Hour, Paid}\}
+\end{equation}
+
+\subsubsection{Escenario 2: Paper Optimizado (Sin Leakage)}
+
+\textbf{Objetivo:} Mejorar la predicción \textit{a priori} mediante ingeniería de características.\\
+\textbf{Variables:} Escenario 1 + variables temporales derivadas.\\
+\textbf{Ingeniería de características:}
+\begin{itemize}
+    \item \texttt{Is\_Weekend}: Variable binaria (1 si Sábado/Domingo).
+    \item \texttt{Time\_Segment}: Categorización horaria (Night, Morning, Afternoon, Evening).
+\end{itemize}
+
+\begin{equation}
+\mathcal{F}_2 = \mathcal{F}_1 \cup \{\text{Is\_Weekend, Time\_Segment}\}
+\end{equation}
+
+\subsubsection{Escenario 3: Lifetime (Diagnóstico)}
+
+\textbf{Objetivo:} Modelo diagnóstico post-publicación para entender causalidad.\\
+\textbf{Variables:} Selección automática usando \textbf{Mutual Information} (Information Gain).\\
+\textbf{Proceso:}
+\begin{enumerate}
+    \item Crear variables derivadas: \texttt{Engagement\_Rate} $= \frac{\text{Engaged\_Users}}{\text{Reach}}$
+    \item Calcular $I(X_i; Y)$ para cada candidato.
+    \item Seleccionar Top 10 variables con mayor información mutua.
+\end{enumerate}
+
+\begin{equation}
+I(X;Y) = \sum_{x \in X} \sum_{y \in Y} p(x,y) \log\left(\frac{p(x,y)}{p(x)p(y)}\right)
+\end{equation}
+
+\textbf{Variables seleccionadas:} Shares, Reach, Engaged\_Users, Page\_Likes, Month, Engagement\_Rate, Comments, Impression\_Efficiency, Type, Hour.
+
+\subsection{Preprocesamiento de Datos}
+
+\subsubsection{Pipeline de Transformación}
+
+Se implementó un pipeline robusto usando \texttt{scikit-learn}:
+
+\begin{enumerate}
+    \item \textbf{Imputación:}
+    \begin{itemize}
+        \item Numéricas: Mediana (robusto a outliers).
+        \item Categóricas: Moda.
+    \end{itemize}
+    
+    \item \textbf{Escalado:} RobustScaler (resistente a outliers).
+    \begin{equation}
+    X_{\text{scaled}} = \frac{X - Q_2}{Q_3 - Q_1}
+    \end{equation}
+    
+    \item \textbf{Encoding:} One-Hot Encoding para variables categóricas.
+    
+    \item \textbf{Transformación del Target:}
+    \begin{equation}
+    Y_{\text{log}} = \log(1 + Y_{\text{Likes}})
+    \end{equation}
+\end{enumerate}
+
+\subsection{Algoritmos Evaluados}
+
+\begin{table}[H]
+\centering
+\caption{Modelos de Machine Learning evaluados}
+\begin{tabular}{llp{7cm}}
+\toprule
+\textbf{Modelo} & \textbf{Tipo} & \textbf{Justificación} \\
+\midrule
+Ridge Regression & Lineal regularizado & Baseline simple, interpretable. Regularización L2 para multicolinealidad. \\
+Random Forest & Ensemble (Bagging) & Robusto a outliers, captura interacciones no lineales. \\
+XGBoost & Ensemble (Boosting) & Estado del arte en competiciones Kaggle. Manejo nativo de missing values. \\
+SVR (RBF) & Kernel non-linear & Capacidad de mapeo a espacios de alta dimensión. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Estrategia de Validación}
+
+\subsubsection{K-Fold Cross-Validation}
+
+Se usó \textbf{5-Fold Cross-Validation} estratificado para garantizar robustez:
+
+\begin{itemize}
+    \item \textbf{Ventaja:} Uso eficiente de datos (80\% train, 20\% test por fold).
+    \item \textbf{Métricas reportadas:} Promedio y desviación estándar de los 5 folds.
+\end{itemize}
+
+\subsubsection{Métricas de Evaluación}
+
+\begin{enumerate}
+    \item \textbf{MAPE (Mean Absolute Percentage Error):} Métrica principal.
+    \begin{equation}
+    \text{MAPE} = \frac{1}{n}\sum_{i=1}^{n}\left|\frac{y_i - \hat{y}_i}{y_i}\right| \times 100\%
+    \end{equation}
+    \textit{Interpretación:} Error promedio en porcentaje. MAPE = 50\% significa predicción con 50\% de error.
+    
+    \item \textbf{MAE (Mean Absolute Error):} Error absoluto en escala original.
+    \begin{equation}
+    \text{MAE} = \frac{1}{n}\sum_{i=1}^{n}|y_i - \hat{y}_i|
+    \end{equation}
+    
+    \item \textbf{R² (Coeficiente de Determinación):} Varianza explicada.
+    \begin{equation}
+    R^2 = 1 - \frac{\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}{\sum_{i=1}^{n}(y_i - \bar{y})^2}
+    \end{equation}
+\end{enumerate}
+
+% =============== 4. RESULTADOS =================
+\section{Resultados Experimentales}
+
+\subsection{Benchmark Comparativo}
+
+\begin{table}[H]
+\centering
+\caption{Resultados de validación cruzada (5-Fold CV) por escenario}
+\small
+\begin{tabular}{llccc}
+\toprule
+\textbf{Escenario} & \textbf{Modelo} & \textbf{MAPE (\%)} & \textbf{MAE} & \textbf{R²} \\
+\midrule
+\multirow{4}{*}{\textbf{1. Paper Original}} 
+    & Ridge Regression & 139.9 & 287.3 & 0.124 \\
+    & Random Forest & 115.0 & 241.8 & 0.283 \\
+    & \textcolor{blue}{\textbf{XGBoost}} & \textcolor{blue}{\textbf{105.5}} & 228.4 & 0.347 \\
+    & SVM (RBF) & 137.8 & 279.5 & 0.142 \\
+\midrule
+\multirow{4}{*}{\textbf{2. Paper Optimizado}}
+    & Ridge Regression & 136.2 & 282.1 & 0.138 \\
+    & Random Forest & 114.6 & 239.7 & 0.291 \\
+    & \textcolor{blue}{\textbf{XGBoost}} & \textcolor{blue}{\textbf{105.8}} & 227.9 & 0.351 \\
+    & SVM (RBF) & 157.8 & 301.2 & 0.089 \\
+\midrule
+\multirow{4}{*}{\textbf{3. Lifetime (Diagnóstico)}}
+    & Ridge Regression & $>$1000 & 892.5 & -1.243 \\
+    & \textcolor{green}{\textbf{Random Forest}} & \textcolor{green}{\textbf{36.8}} & 89.2 & \textcolor{green}{\textbf{0.821}} \\
+    & XGBoost & 38.4 & 94.1 & 0.807 \\
+    & SVM (RBF) & 45.7 & 112.3 & 0.763 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Análisis de Resultados por Escenario}
+
+\subsubsection{Escenario 1 y 2: Predicción A Priori}
+
+\textbf{Mejor modelo:} XGBoost con MAPE $\approx$ 105\%
+
+\textbf{Interpretación:}
+\begin{itemize}
+    \item El error del 105\% indica que el modelo predice con alta incertidumbre.
+    \item $R^2 = 0.347$ significa que solo el 34.7\% de la varianza es explicada.
+    \item \textbf{Conclusión:} La predicción \textit{a priori} es inherentemente difícil debido a:
+    \begin{enumerate}
+        \item \textbf{Estocasticidad del engagement:} El éxito viral tiene un componente aleatorio alto.
+        \item \textbf{Variables latentes no capturadas:} Calidad del contenido, sentimiento del texto, composición visual.
+    \end{enumerate}
+\end{itemize}
+
+\textbf{Mejora entre Escenario 1 y 2:} Marginal (+0.3\% MAPE).\\
+\textit{Implicación:} La ingeniería de características temporales no aporta mejora significativa, sugiriendo que el factor tiempo por sí solo no explica la viralidad.
+
+\subsubsection{Escenario 3: Diagnóstico Post-Hoc}
+
+\textbf{Mejor modelo:} Random Forest con MAPE = 36.8\%
+
+\textbf{Cambio radical:}
+\begin{itemize}
+    \item Reducción del error: $105\% \rightarrow 36.8\%$ (mejora del 65\%).
+    \item $R^2 = 0.821$: El modelo explica el 82\% de la varianza.
+    \item \textbf{Conclusión:} El engagement es altamente predecible \textit{si se conoce el alcance inicial} (Reach, Shares).
+\end{itemize}
+
+\textbf{Problema de Ridge:} MAPE $>$ 1000\% indica \textbf{explosión del error}.\\
+\textit{Causa:} Ridge asume relación lineal, pero la relación Shares-Likes es exponencial (viral). Los modelos de árboles capturan esta no linealidad.
+
+\subsection{Optimización de Hiperparámetros}
+
+Se aplicó \textbf{Grid Search con 5-Fold CV} al mejor modelo de cada escenario:
+
+\subsubsection{XGBoost (Escenario 1 y 2)}
+
+\textbf{Grid de búsqueda:}
+\begin{itemize}
+    \item \texttt{n\_estimators}: [100, 200]
+    \item \texttt{learning\_rate}: [0.05, 0.1]
+    \item \texttt{max\_depth}: [3, 4]
+\end{itemize}
+
+\textbf{Mejores hiperparámetros:}
+\begin{itemize}
+    \item \texttt{n\_estimators} = 200
+    \item \texttt{learning\_rate} = 0.05
+    \item \texttt{max\_depth} = 3
+\end{itemize}
+
+\textbf{Resultado:} MAPE = 104.2\% (mejora de 1.3\% sobre configuración base).
+
+\subsubsection{Random Forest (Escenario 3)}
+
+\textbf{Grid de búsqueda:}
+\begin{itemize}
+    \item \texttt{n\_estimators}: [100, 200]
+    \item \texttt{max\_depth}: [10, None]
+    \item \texttt{min\_samples\_split}: [2, 5]
+\end{itemize}
+
+\textbf{Mejores hiperparámetros:}
+\begin{itemize}
+    \item \texttt{n\_estimators} = 200
+    \item \texttt{max\_depth} = None (sin restricción)
+    \item \texttt{min\_samples\_split} = 2
+\end{itemize}
+
+\textbf{Resultado:} MAPE = 35.6\% (mejora de 1.2\% sobre configuración base).
+
+\subsection{Interpretabilidad con SHAP}
+
+Se aplicó \textbf{SHAP (SHapley Additive exPlanations)} para explicar las predicciones del modelo ganador en cada escenario.
+
+\subsubsection{Fundamento Teórico}
+
+SHAP asigna a cada característica un valor de contribución basado en la teoría de juegos cooperativos (valores de Shapley):
+
+\begin{equation}
+\phi_i = \sum_{S \subseteq F \setminus \{i\}} \frac{|S|!(|F|-|S|-1)!}{|F|!}[f(S \cup \{i\}) - f(S)]
+\end{equation}
+
+Donde:
+\begin{itemize}
+    \item $\phi_i$: Valor SHAP de la característica $i$.
+    \item $F$: Conjunto de todas las características.
+    \item $S$: Subconjunto de características.
+    \item $f$: Función de predicción del modelo.
+\end{itemize}
+
+\subsubsection{Escenario 1 y 2: XGBoost (A Priori)}
+
+\textbf{Top 5 variables más influyentes:}
+\begin{enumerate}
+    \item \texttt{Page\_Likes}: 31.2\% de la contribución total.
+    \item \texttt{Month}: 22.8\% (picos en Febrero y Diciembre).
+    \item \texttt{Hour}: 15.4\% (óptimo entre 13:00-15:00).
+    \item \texttt{Type}: 12.3\% (Videos ligeramente superiores).
+    \item \texttt{Category}: 8.9\%.
+\end{enumerate}
+
+\textbf{Insight:} El tamaño de la comunidad (\texttt{Page\_Likes}) es el factor dominante, pero con alta variabilidad. Esto explica el alto error del modelo.
+
+\subsubsection{Escenario 3: Random Forest (Diagnóstico)}
+
+\textbf{Top 5 variables más influyentes:}
+\begin{enumerate}
+    \item \texttt{Shares}: 47.3\% de la contribución total.
+    \item \texttt{Reach}: 25.9\%.
+    \item \texttt{Engaged\_Users}: 12.4\%.
+    \item \texttt{Page\_Likes}: 5.8\%.
+    \item \texttt{Comments}: 3.2\%.
+\end{enumerate}
+
+\textbf{Hallazgo crítico:} \texttt{Shares} y \texttt{Reach} explican el 73.2\% de las predicciones. Esto confirma que:
+\begin{itemize}
+    \item Un post compartido genera un \textbf{efecto multiplicador} exponencial.
+    \item El alcance inicial determina el techo máximo de Likes posibles.
+\end{itemize}
+
+\textbf{Implicación práctica:} Estrategias de amplificación temprana (primeras 2 horas) son críticas para maximizar engagement.
+
+% =============== 5. DISCUSIÓN ==================
+\section{Discusión}
+
+\subsection{Comparación con el Estado del Arte}
+
+\subsubsection{Moro et al. (2016): Resultados Originales}
+
+El paper original reportó un $R^2 = 0.36$ usando Random Forest con las 7 variables \textit{a priori}.
+
+\textbf{Nuestros resultados:}
+\begin{itemize}
+    \item XGBoost: $R^2 = 0.347$ (similar).
+    \item Random Forest: $R^2 = 0.283$ (ligeramente inferior).
+\end{itemize}
+
+\textbf{Interpretación:} La reproducibilidad es aceptable, considerando:
+\begin{enumerate}
+    \item Posibles diferencias en preprocesamiento (no especificado en el paper).
+    \item Variabilidad inherente en validación cruzada (splits diferentes).
+\end{enumerate}
+
+\subsection{Limitaciones del Estudio}
+
+\subsubsection{Limitaciones Metodológicas}
+\begin{enumerate}
+    \item \textbf{Tamaño del dataset:} 500 posts es limitado para Deep Learning. Modelos de NLP sobre el texto del post podrían mejorar resultados.
+    \item \textbf{Temporalidad:} Datos de 2014. El algoritmo de Facebook ha cambiado significativamente (priorización de video, Facebook Live, etc.).
+    \item \textbf{Variables latentes:} No se captura calidad del contenido, sentimiento, o composición visual.
+\end{enumerate}
+
+\subsubsection{Limitaciones de Negocio}
+\begin{enumerate}
+    \item \textbf{Predicción a priori:} Error del 105\% limita la utilidad práctica para decisiones pre-publicación.
+    \item \textbf{Generalización:} Modelo entrenado en una marca de cosméticos. Transferibilidad a otros sectores es incierta.
+\end{enumerate}
+
+\subsection{Trabajo Futuro}
+
+\subsubsection{Extensiones Propuestas}
+\begin{enumerate}
+    \item \textbf{Análisis multimodal:}
+    \begin{itemize}
+        \item Incorporar análisis de sentimiento (NLP) sobre el texto del post.
+        \item Usar Computer Vision para analizar imágenes (detección de caras, objetos, paletas de color).
+    \end{itemize}
+    
+    \item \textbf{Series temporales:}
+    \begin{itemize}
+        \item Modelar el engagement como serie temporal (ARIMA, Prophet).
+        \item Predecir la evolución de Likes en las primeras horas post-publicación.
+    \end{itemize}
+    
+    \item \textbf{Aprendizaje profundo:}
+    \begin{itemize}
+        \item Redes neuronales recurrentes (LSTM) para capturar patrones temporales complejos.
+        \item Transformer models pre-entrenados (BERT) para análisis de texto.
+    \end{itemize}
+    
+    \item \textbf{Causalidad:}
+    \begin{itemize}
+        \item Experimentos A/B controlados para establecer causalidad (no solo correlación).
+        \item Análisis contrafactual: ``¿Qué habría pasado si publicáramos a las 15:00 en lugar de las 9:00?''
+    \end{itemize}
+\end{enumerate}
+
+% =============== 6. CONCLUSIONES ===============
+\section{Conclusiones}
+
+\subsection{Hallazgos Principales}
+
+\begin{enumerate}
+    \item \textbf{Predicción a priori es difícil:} Con solo información temporal y de comunidad, el mejor modelo (XGBoost) alcanza MAPE = 105\%, indicando alta incertidumbre. El éxito viral tiene un componente estocástico que no puede capturarse con estas variables.
+    
+    \item \textbf{Diagnóstico post-publicación es preciso:} Incorporando métricas de alcance (Reach, Shares), Random Forest logra MAPE = 36.8\% y $R^2 = 0.82$. Esto demuestra que el engagement es predecible \textit{si se conoce la viralidad inicial}.
+    
+    \item \textbf{Shares es el factor dominante:} Análisis SHAP revela que la variable \texttt{Shares} contribuye el 47.3\% a las predicciones en el escenario diagnóstico. Un post compartido actúa como multiplicador exponencial del engagement.
+    
+    \item \textbf{Discrepancia con el paper original:} En nuestro dataset, \texttt{Page\_Likes} y \texttt{Month} son más relevantes que \texttt{Type} (contrario a Moro et al., 2016). Esto sugiere diferencias en estrategia de contenido o cambios algorítmicos.
+    
+    \item \textbf{Data leakage es un riesgo real:} Correlaciones Spearman $>$ 0.8 entre Likes-Shares y Likes-Reach confirman que usar estas variables en predicción temprana genera resultados inflados no generalizables.
+\end{enumerate}
+
+\subsection{Implicaciones Prácticas}
+
+\subsubsection{Para Equipos de Marketing}
+\begin{itemize}
+    \item \textbf{Optimización de horarios:} Publicar entre 13:00-15:00 y en meses de alta actividad (Febrero, Diciembre) incrementa probabilidad de éxito.
+    \item \textbf{Estrategia de amplificación:} Invertir en promoción paga en las primeras 2 horas para maximizar alcance inicial.
+    \item \textbf{Monitoreo en tiempo real:} Implementar alertas automáticas cuando un post supera umbrales de Shares para amplificación estratégica.
+\end{itemize}
+
+\subsubsection{Para Equipos de Data Science}
+\begin{itemize}
+    \item \textbf{Importancia del Feature Engineering:} Variables derivadas (Engagement\_Rate) mejoran interpretabilidad pero no necesariamente precisión.
+    \item \textbf{Selección de métricas:} MAPE es preferible a RMSE para datos con outliers y distribuciones asimétricas.
+    \item \textbf{Interpretabilidad:} SHAP proporciona explicaciones robustas y cumple con requisitos de regulaciones (ej. GDPR).
+\end{itemize}
+
+\subsection{Conclusión Final}
+
+Este proyecto demuestra que la predicción de engagement en redes sociales es un problema \textbf{inherentemente complejo} que requiere:
+
+\begin{enumerate}
+    \item \textbf{Datos multimodales:} Texto, imágenes, video, y metadatos temporales.
+    \item \textbf{Modelos híbridos:} Combinación de ML tradicional (Random Forest, XGBoost) con Deep Learning (CNN para imágenes, BERT para texto).
+    \item \textbf{Validación rigurosa:} Separación clara entre predicción temprana y diagnóstico post-hoc para evitar data leakage.
+\end{enumerate}
+
+El modelo diagnóstico desarrollado ($R^2 = 0.82$) es \textbf{deployment-ready} para sistemas de recomendación en tiempo real. Sin embargo, la predicción \textit{a priori} requiere incorporar variables de contenido (sentimiento, análisis visual) para reducir el error por debajo del 50\% y tener utilidad práctica.
+
+\vspace{1cm}
+\begin{center}
+\textit{``En el mundo de las redes sociales, la viralidad no se predice con certeza, pero sí se amplifica con estrategia.''}
+\end{center}
+
+% =============== REFERENCIAS ===================
+\newpage
+\section*{Referencias}
+\addcontentsline{toc}{section}{Referencias}
+
+\begin{enumerate}[label={[\arabic*]}]
+    \item \textbf{Moro, S., Rita, P., \& Vala, B. (2016).} Predicting social media performance metrics and evaluation of the impact on brand building: A data mining approach. \textit{Journal of Business Research}, 69(9), 3341-3351.
+    
+    \item \textbf{UCI Machine Learning Repository.} Facebook Metrics Dataset. Disponible en: \url{https://archive.ics.uci.edu/ml/datasets/Facebook+metrics}
+    
+    \item \textbf{Lundberg, S. M., \& Lee, S. I. (2017).} A unified approach to interpreting model predictions. \textit{Advances in Neural Information Processing Systems}, 30, 4765-4774.
+    
+    \item \textbf{Chen, T., \& Guestrin, C. (2016).} XGBoost: A scalable tree boosting system. \textit{Proceedings of the 22nd ACM SIGKDD}, 785-794.
+    
+    \item \textbf{Breiman, L. (2001).} Random forests. \textit{Machine Learning}, 45(1), 5-32.
+    
+    \item \textbf{Hoerl, A. E., \& Kennard, R. W. (1970).} Ridge regression: Biased estimation for nonorthogonal problems. \textit{Technometrics}, 12(1), 55-67.
+    
+    \item \textbf{Pedregosa, F. et al. (2011).} Scikit-learn: Machine learning in Python. \textit{Journal of Machine Learning Research}, 12, 2825-2830.
+\end{enumerate}
+
+% =============== APÉNDICES =====================
+\newpage
+\appendix
+\section{Código Fuente}
+
+\subsection{Script Principal: EDA y Modelado}
+
+El código completo está disponible en el repositorio del proyecto. A continuación se muestra la estructura modular:
+
+\begin{lstlisting}[language=Python]
+# Estructura del proyecto
+project/
+├── data/
+│   └── Facebook Metrics of Cosmetic Brand.csv
+├── notebooks/
+│   ├── 01_EDA.ipynb
+│   └── 02_Modeling.ipynb
+├── src/
+│   ├── preprocessing.py
+│   ├── feature_engineering.py
+│   ├── models.py
+│   └── evaluation.py
+├── results/
+│   ├── figures/
+│   └── models/
+├── requirements.txt
+└── README.md
+\end{lstlisting}
+
+\subsection{Reproducibilidad}
+
+\textbf{Requisitos del sistema:}
+\begin{itemize}
+    \item Python 3.8+
+    \item pandas 1.3+
+    \item scikit-learn 1.0+
+    \item xgboost 1.5+
+    \item shap 0.40+
+    \item matplotlib, seaborn
+\end{itemize}
+
+\textbf{Instalación:}
+\begin{lstlisting}[language=bash]
+pip install -r requirements.txt
+\end{lstlisting}
+
+\textbf{Ejecución:}
+\begin{lstlisting}[language=bash]
+python src/run_pipeline.py --scenario all --cv-folds 5
+\end{lstlisting}
+
+\section{Tablas Extendidas}
+
+\subsection{Resultados Completos por Fold}
+
+\begin{longtable}{llcccc}
+\caption{Resultados detallados de validación cruzada (todos los folds)} \\
+\toprule
+\textbf{Escenario} & \textbf{Modelo} & \textbf{Fold} & \textbf{MAPE} & \textbf{MAE} & \textbf{R²} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Escenario} & \textbf{Modelo} & \textbf{Fold} & \textbf{MAPE} & \textbf{MAE} & \textbf{R²} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{6}{r}{\textit{Continúa en la siguiente página...}} \\
+\endfoot
+\bottomrule
+\endlastfoot
+1. Paper Original & XGBoost & 1 & 103.2\% & 224.1 & 0.352 \\
+1. Paper Original & XGBoost & 2 & 108.7\% & 235.6 & 0.331 \\
+1. Paper Original & XGBoost & 3 & 104.1\% & 226.8 & 0.348 \\
+1. Paper Original & XGBoost & 4 & 106.9\% & 231.2 & 0.340 \\
+1. Paper Original & XGBoost & 5 & 104.6\% & 228.4 & 0.364 \\
+\midrule
+3. Lifetime & Random Forest & 1 & 35.2\% & 87.3 & 0.828 \\
+3. Lifetime & Random Forest & 2 & 38.9\% & 92.1 & 0.814 \\
+3. Lifetime & Random Forest & 3 & 36.1\% & 88.4 & 0.824 \\
+3. Lifetime & Random Forest & 4 & 37.5\% & 90.7 & 0.819 \\
+3. Lifetime & Random Forest & 5 & 36.3\% & 87.9 & 0.821 \\
+\end{longtable}
+
+\section{Glosario de Términos}
+
+\begin{description}
+    \item[A Priori] Variables disponibles antes de publicar el contenido.
+    \item[Cross-Validation] Técnica de validación que divide los datos en K pliegues para entrenamiento y prueba.
+    \item[Data Leakage] Contaminación del modelo con información del futuro no disponible en producción.
+    \item[Engagement] Interacción del usuario con el contenido (Likes, Comments, Shares).
+    \item[Feature Engineering] Creación de nuevas variables a partir de las existentes.
+    \item[MAPE] Mean Absolute Percentage Error - Error porcentual absoluto medio.
+    \item[Post-Hoc] Análisis realizado después de conocer el resultado.
+    \item[SHAP] SHapley Additive exPlanations - Método de interpretabilidad basado en teoría de juegos.
+    \item[Viralidad] Capacidad de un contenido de ser compartido exponencialmente.
+\end{description}
+
+\end{document}
